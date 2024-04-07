@@ -52,86 +52,72 @@ def form():
     return render_template('form.html')
 
 # Определение маршрута для страницы с калькулятором
-@app.route('/calculate', methods=['get',"post"])
+@app.route('/calculate', methods=['GET', 'POST'])
 def calculate():
-    res = ""
-    # Если метод запроса POST
     if request.method == "POST":
-        # Проверяем, является ли number1 числом
-        if not(request.form["number1"].isdigit()):
-            msg = "Первое значение должно быть числом!"
-            # Возвращаем шаблон calculate.html с сообщением об ошибке
-            return render_template('calculate.html', msg=msg)
-        # Проверяем, является ли number2 числом
-        if not(request.form["number2"].isdigit()):
-            msg = "Второе значение должно быть числом!"
-            # Возвращаем шаблон calculate.html с сообщением об ошибке
-            return render_template('calculate.html', msg=msg)
         # Получаем значения number1, number2 и operator из запроса
-        a = int(request.form["number1"])
-        b = int(request.form["number2"])
-        operator = request.form["operator"]
+        number1 = request.form.get("number1")
+        number2 = request.form.get("number2")
+        operator = request.form.get("operator")
+
+        # Проверяем, являются ли number1 и number2 числами
+        if not (number1.isdigit() and number2.isdigit()):
+            return render_template('calculate.html', msg="Оба значения должны быть числами!")
+
+        # Преобразуем number1 и number2 в целые числа
+        a = int(number1)
+        b = int(number2)
+
         # Выполняем операцию в зависимости от оператора
         if operator == "+":
-            res = a+b
+            res = a + b
         elif operator == "-":
-            res = a-b
+            res = a - b
         elif operator == "*":
-            res = a*b
+            res = a * b
         elif operator == "/":
-            if b==0:
-                msg = "Делить на 0 нельзя!"
-                # Возвращаем шаблон calculate.html с сообщением об ошибке
-                return render_template('calculate.html', msg=msg)
-            res = a/b
-    # Возвращаем шаблон calculate.html с результатом вычисления
-    return render_template('calculate.html', res=res)
-    
+            # Проверяем деление на ноль
+            if b == 0:
+                return render_template('calculate.html', msg="Деление на ноль невозможно!")
+            res = a / b
+
+        # Возвращаем шаблон calculate.html с результатом вычисления
+        return render_template('calculate.html', res=res)
+
+    # Если метод запроса не POST, возвращаем пустой результат
+    return render_template('calculate.html')
+  
 # Определение маршрута для страницы с проверкой номера телефона
-@app.route('/check_phone_number', methods=['get',"post"])
+@app.route('/check_phone_number', methods=['GET', 'POST'])
 def check_phone_number():
-    # Если метод запроса GET
-    if request.method == "GET": 
-        # Возвращаем шаблон check_phone_number.html без сообщения
-        return render_template("check_phone_number.html", msg = "0") 
-    else: # Метод запроса POST
-        # Получаем номер телефона из формы
+    if request.method == "GET":
+        return render_template("check_phone_number.html", msg="0")
+    else:
         phone_number = request.form["check_number1"]
+        
         # Список допустимых символов, кроме цифр
-        acceptable_symbols_except_figures = [" ", "(", ")", ".", "+", "-"]
-        # Проверка количества цифр в номере
-        counter_of_figures = 0
-        for i in phone_number:
-            if i.isdigit():
-                counter_of_figures += 1
+        acceptable_symbols_except_digits = [" ", "(", ")", ".", "+", "-"]
+        
+        # Подсчёт количества цифр в номере
+        counter_of_digits = sum(1 for char in phone_number if char.isdigit())
+        
         # Проверка, что количество цифр соответствует стандарту
-        if counter_of_figures == 11:
-            if not(phone_number[0] == "8" or phone_number[:2] == "+7"):
-                return render_template("check_phone_number.html", msg = "1") 
-        elif counter_of_figures == 10:
-            if (phone_number[0] == "8" or phone_number[:2] == "+7"):
-                return render_template("check_phone_number.html", msg = "1")
-        else:
-            return render_template("check_phone_number.html", msg = "1")
-    # Проверка на допустимые символы
-    for i in phone_number:
-        if not(i in acceptable_symbols_except_figures or i.isdigit()):
-            return render_template("check_phone_number.html", msg = "2")
-    # Форматирование номера телефона
-    formating_phone_nuber = phone_number
-    if formating_phone_nuber[0] == '+':
-        formating_phone_nuber = formating_phone_nuber.replace('+7', '8', 1)
-    if formating_phone_nuber[0] != '8':
-        formating_phone_nuber = '8' + formating_phone_nuber
-    formating_phone_nuber = formating_phone_nuber.replace('(', '')
-    formating_phone_nuber = formating_phone_nuber.replace(')', '')
-    formating_phone_nuber = formating_phone_nuber.replace(' ', '')
-    formating_phone_nuber = formating_phone_nuber.replace('.', '')
-    formating_phone_nuber = formating_phone_nuber.replace('-', '')
-    formating_phone_nuber = formating_phone_nuber.replace('+', '')
-    formating_phone_nuber = formating_phone_nuber[0] + '-' + formating_phone_nuber[1:4] + '-' + formating_phone_nuber[4:7] + '-' + formating_phone_nuber[7:9] + '-' + formating_phone_nuber[9:]
-    # Возвращаем шаблон check_phone_number.html с результатом проверки
-    return render_template("check_phone_number.html", msg = "3", phone_number = formating_phone_nuber)
+        if counter_of_digits not in [10, 11]:
+            return render_template("check_phone_number.html", msg="1")
+        
+        # Проверка на допустимые символы
+        if any(char not in acceptable_symbols_except_digits and not char.isdigit() for char in phone_number):
+            return render_template("check_phone_number.html", msg="2")
+        
+        # Форматирование номера телефона
+        formatted_phone_number = phone_number.replace('(', '').replace(')', '').replace('.', '').replace(' ', '').replace('-', '').replace('+', '')
+        
+        if len(formatted_phone_number) == 10 and formatted_phone_number.startswith('8'):
+            formatted_phone_number = '8' + formatted_phone_number[1:]
+        
+        formatted_phone_number = formatted_phone_number[:1] + '-' + formatted_phone_number[1:4] + '-' + formatted_phone_number[4:7] + '-' + formatted_phone_number[7:9] + '-' + formatted_phone_number[9:]
+        
+        return render_template("check_phone_number.html", msg="3", phone_number=formatted_phone_number)
 
 if __name__ == "__main__":
     app.run(debug=True)
