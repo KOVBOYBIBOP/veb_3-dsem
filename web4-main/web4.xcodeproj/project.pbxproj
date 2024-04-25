@@ -1,0 +1,80 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXFileReference section */
+		C71D45232BDBECF1009E5FBD /* schema.sql */ = {isa = PBXFileReference; lastKnownFileType = text; path = schema.sql; sourceTree = "<group>"; };
+		C79291062BBFE563002AB03F /* main.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = main.py; sourceTree = "<group>"; };
+		C79291072BBFE563002AB03F /* templates */ = {isa = PBXFileReference; lastKnownFileType = folder; path = templates; sourceTree = "<group>"; };
+		C7F85E0A2BC0467700783C53 /* static */ = {isa = PBXFileReference; lastKnownFileType = folder; path = static; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		C79290FF2BBFE4E9002AB03F = {
+			isa = PBXGroup;
+			children = (
+				C71D45232BDBECF1009E5FBD /* schema.sql */,
+				C7F85E0A2BC0467700783C53 /* static */,
+				C79291062BBFE563002AB03F /* main.py */,
+				C79291072BBFE563002AB03F /* templates */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXProject section */
+		C79291002BBFE4E9002AB03F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1530;
+			};
+			buildConfigurationList = C79291032BBFE4E9002AB03F /* Build configuration list for PBXProject "web4" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C79290FF2BBFE4E9002AB03F;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+			);
+		};
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+		C79291042BBFE4E9002AB03F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		C79291052BBFE4E9002AB03F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C79291032BBFE4E9002AB03F /* Build configuration list for PBXProject "web4" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C79291042BBFE4E9002AB03F /* Debug */,
+				C79291052BBFE4E9002AB03F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C79291002BBFE4E9002AB03F /* Project object */;
+}
