@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <img src="{% if book.cover_image %}{{ url_for('image', image_id=book.cover_image) }}{% endif %}" class="img-fluid" alt="Обложка книги">
+        </div>
+        <div class="col-md-8">
+            <h2>{{ book.title }}</h2>
+            <p><strong>Издательство:</strong> {{ book.publisher }}</p>
+            <p><strong>Автор:</strong> {{ book.writer }}</p>
+            <p><strong>Описание:</strong> <span>{{ book.description | safe }}</span></p>
+            <p><strong>Год написания:</strong> {{ book.publication_year }}</p>
+            <p><strong>Объём (в страницах):</strong> {{ book.pages }}</p>
+            <p><strong>Жанр(ы):</strong>
+                <ul>
+                    {% for genre in categories %}
+                    <li>{{ genre.category_name }}</li>
+                    {% endfor %}
+                </ul>
+            </p>
+            <p><strong>Средняя оценка пользователей:</strong> {{ book.rating }}</p>
+            <p><strong>Количество рецензий:</strong> {{ book.ratings_count }}</p>
+        </div>
+    </div>
+    {% if current_user.is_authenticated and not comment %}
+    <a class="btn btn-primary mt-4" href="{{ url_for('comments.comment_post', book_id=book.id) }}">Написать рецензию</a>
+    {% endif %}
+    <div class="mt-4">
+        <h4>Рецензии:</h4>
+        {% if not all_comments and not comment %}
+        <p>Рецензий пока нет</p>
+        {% endif %}
+        {% if current_user.is_authenticated and comment %}
+        <div class="border p-3 mb-3">
+            <h5>Ваша рецензия <span class="badge badge-primary">{{ comment.score }}</span></h5>
+            <p>{{ comment.comment | safe }}</p>
+        </div>
+        {% endif %}
+        {% for com in all_comments %}
+        <div class="border p-3 mb-3">
+            <h5>User {{ com.user_id }} <span class="badge badge-primary">{{ com.score }}</span></h5>
+            <p>{{ com.comment | safe }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
