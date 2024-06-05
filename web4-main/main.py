@@ -1,8 +1,8 @@
 from flask import Flask, render_template, redirect, url_for, request, session, jsonify, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
+import hashlib
 from datetime import datetime
-from werkzeug.security import check_password_hash
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Length, EqualTo, Regexp
@@ -15,74 +15,80 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-class User(UserMixin, db.Model):
+class UserAccount(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    login = db.Column(db.String(50), nullable=False, unique=True)
-    password = db.Column(db.String(128), nullable=False)
-    surname = db.Column(db.String(50))
+    username = db.Column(db.String(50), nullable=False, unique=True)
+    hashed_password = db.Column(db.String(128), nullable=False)
+    last_name = db.Column(db.String(50))
     first_name = db.Column(db.String(50), nullable=False)
     middle_name = db.Column(db.String(50))
-    role_id = db.Column(db.Integer, db.ForeignKey('role.id'))
+    role_id = db.Column(db.Integer, db.ForeignKey('user_role.id'))
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    
-class UserForm(FlaskForm):
-    login = StringField('Логин', validators=[DataRequired(), Length(min=5)])
-    password = PasswordField('Пароль', validators=[DataRequired(), Length(min=8, max=128)])
-    confirm_password = PasswordField('Повторите пароль', validators=[DataRequired(), EqualTo('password')])
-    surname = StringField('Фамилия', validators=[DataRequired()])
-    first_name = StringField('Имя', validators=[DataRequired()])
-    middle_name = StringField('Отчество')
-    role_id = SelectField('Роль', coerce=int, validators=[DataRequired()], default=2)
-    
-class ChangePasswordForm(FlaskForm):
-    old_password = PasswordField('Старый пароль', validators=[DataRequired()])
-    new_password = PasswordField('Новый пароль', validators=[DataRequired(), Length(min=8, max=128)])
-    confirm_new_password = PasswordField('Повторите новый пароль', validators=[DataRequired(), EqualTo('new_password')])
-    submit = SubmitField('Изменить пароль')
 
-class Role(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    description = db.Column(db.String(200))
+    def set_password(self, password):
+        self.hashed_password = hashlib.md5(password.encode()).hexdigest()
+
+    def validate_password(self, password):
+        result = self.hashed_password == password
+        return result
+
     
-class ChangePasswordForm(FlaskForm):
-    old_password = PasswordField('Старый пароль', validators=[DataRequired()])
-    new_password = PasswordField('Новый пароль', validators=[
+class UserAccountForm(FlaskForm):
+    username = StringField('Username', validators=[
+        DataRequired(),
+        Length(min=5, message='Username must be at least 5 characters long'),
+        Regexp('^[A-Za-z0-9]+$', message='Username can only contain letters and numbers')
+    ])
+    password = PasswordField('Password', validators=[
         DataRequired(),
         Length(min=8, max=128),
         Regexp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&^_-])[A-Za-z\\d@$!%*?&^_-]{8,}$',
-               message="Пароль должен содержать минимум 8 символов, как минимум одну заглавную и одну строчную букву, одну цифру и один из следующих специальных символов: @$!%*?&^_-")
+               message="Password must contain at least 8 characters, one uppercase, one lowercase, one digit, and one special character @$!%*?&^_-")
     ])
-    confirm_password = PasswordField('Повторите новый пароль', validators=[
-        DataRequired(),
-        EqualTo('new_password', message='Пароли должны совпадать')
-    ])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password', message='Passwords must match')])
+    last_name = StringField('Last Name', validators=[DataRequired()])
+    first_name = StringField('First Name', validators=[DataRequired()])
+    middle_name = StringField('Middle Name')
+    role_id = SelectField('Role', coerce=int, validators=[DataRequired()], default=2)
 
-@app.route('/password', methods=['GET', 'POST'])
+class UpdatePasswordForm(FlaskForm):
+    current_password = PasswordField('Current Password', validators=[DataRequired()])
+    new_password = PasswordField('New Password', validators=[
+        DataRequired(),
+        Length(min=8, max=128),
+        Regexp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&^_-])[A-Za-z\\d@$!%*?&^_-]{8,}$',
+               message="Password must contain at least 8 characters, one uppercase, one lowercase, one digit, and one special character @$!%*?&^_-")
+    ])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password', message='Passwords must match')])
+
+class UserRole(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    role_name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(200))
+
+@app.route('/change_password', methods=['GET', 'POST'])
 @login_required
-def password():
-    form = ChangePasswordForm()
+def change_password():
+    form = UpdatePasswordForm()
     if form.validate_on_submit():
         user = current_user
-        if user.password == form.old_password.data:
-            user.password = form.new_password.data
+        if user.validate_password(form.current_password.data):
+            user.set_password(form.new_password.data)
             db.session.commit()
-            flash('Пароль успешно изменен', 'success')
+            flash('Password successfully changed', 'success')
             return redirect(url_for('index'))
         else:
-            flash('Неверный старый пароль', 'error')
+            flash('Invalid current password', 'error')
     return render_template('password.html', form=form)
-    
-def role_name(role_id):
-    role = Role.query.get(role_id)
-    return role.name if role else "Unknown"
 
+def get_role_name(role_id):
+    role = UserRole.query.get(role_id)
+    return role.role_name if role else "Unknown"
 
 @login_manager.user_loader
 def load_user(user_id):
-    user = User.query.get(int(user_id))
-    return user
+    return UserAccount.query.get(int(user_id))
 
 @app.route('/')
 def index():
@@ -91,107 +97,102 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
+        user_name = request.form['username']
         password = request.form['password']
         
-        user = User.query.filter_by(login=username).first()
-        if user and user.password == password:
+        user = UserAccount.query.filter_by(username=user_name).first()
+        if user and user.validate_password(password):
             login_user(user)
             return redirect(url_for('index'))
         else:
-            flash('Неверные логин или пароль', 'error')
+            flash('Invalid username or password', 'error')
             return redirect(url_for('login'))
     return render_template('login.html')
-
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('index'))
-    
+
 @app.route('/users')
-def users():
-    users = []
-    if current_user.is_authenticated:
-        if current_user.role_id == 1:
-            users = User.query.all()
-        else:
-            users = [current_user]
+@login_required
+def manage_users():
+    if current_user.role_id == 1:
+        all_users = UserAccount.query.all()
+    else:
+        all_users = [current_user]
     
-    return render_template('users.html', users=users, role_name=role_name)
-    
+    return render_template('users.html', users=all_users, get_role_name=get_role_name)
+
 @app.route('/user/<int:user_id>')
-def view_user(user_id):
-    user = User.query.get_or_404(user_id)
+def user_details(user_id):
+    user = UserAccount.query.get_or_404(user_id)
     return render_template('view_user.html', user=user)
-    
-@app.route('/user/create_user', methods=['GET', 'POST'])
-def create_user():
-    form = UserForm()
-    roles = Role.query.all()
-    form.role_id.choices = [(role.id, role.name) for role in roles]
+
+@app.route('/user/new', methods=['GET', 'POST'])
+@login_required
+def new_user():
+    form = UserAccountForm()
+    roles = UserRole.query.all()
+    form.role_id.choices = [(role.id, role.role_name) for role in roles]
     if form.validate_on_submit():
-        user = User(
-            login=form.login.data,
-            password=form.password.data,
-            surname=form.surname.data,
+        new_user = UserAccount(
+            username=form.username.data,
+            last_name=form.last_name.data,
             first_name=form.first_name.data,
             middle_name=form.middle_name.data,
             role_id=form.role_id.data
         )
-        db.session.add(user)
+        new_user.set_password(form.password.data)
+        db.session.add(new_user)
         db.session.commit()
-        flash('Пользователь успешно создан', 'success')
-        return redirect(url_for('users'))
+        flash('User successfully created', 'success')
+        return redirect(url_for('manage_users'))
     return render_template('create_user.html', form=form, roles=roles)
 
-
-@app.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
+@app.route('/user/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def edit_user(user_id):
-    user = User.query.get_or_404(user_id)
-    roles = Role.query.all()
+    user = UserAccount.query.get_or_404(user_id)
+    roles = UserRole.query.all()
 
     if request.method == 'POST':
-        user.surname = request.form['surname']
+        user.last_name = request.form['last_name']
         user.first_name = request.form['first_name']
         user.middle_name = request.form['middle_name']
         user.role_id = request.form['role_id']
         db.session.commit()
-        flash('Данные пользователя успешно обновлены', 'success')
-        return redirect(url_for('users'))
+        flash('User details updated successfully', 'success')
+        return redirect(url_for('manage_users'))
 
     return render_template('edit_user.html', user=user, roles=roles)
-
 
 @app.route('/user/<int:user_id>/delete', methods=['POST'])
 @login_required
 def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = UserAccount.query.get_or_404(user_id)
     db.session.delete(user)
     db.session.commit()
-    flash('Пользователь успешно удален', 'success')
-    return redirect(url_for('users'))
+    flash('User successfully deleted', 'success')
+    return redirect(url_for('manage_users'))
 
 @app.route('/user/<int:user_id>/confirm_delete', methods=['GET'])
 @login_required
 def confirm_delete(user_id):
-    user = User.query.get_or_404(user_id)
+    user = UserAccount.query.get_or_404(user_id)
     return render_template('confirm_delete.html', user=user)
 
-    
-def validate_user_data(form):
+def validate_user_input(form):
     password = form.password.data
     if not (any(char.isupper() for char in password) and
             any(char.islower() for char in password) and
             any(char.isdigit() for char in password) and
-            password.isalnum() and
+            not any(char.isspace() for char in password) and
             len(password) >= 8 and
             len(password) <= 128):
-        form.password.errors.append('Пароль не соответствует требованиям')
+        form.password.errors.append('Password does not meet the requirements')
         return False
-
     return True
 
 if __name__ == '__main__':
