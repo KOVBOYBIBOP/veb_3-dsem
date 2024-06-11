@@ -1,0 +1,159 @@
+.logo {
+    max-width: 200px;
+    margin: 0 auto;
+    padding: 10px;
+    display: block;
+}
+
+.profile {
+    max-width: 60px;
+    border-radius: 50%;
+    border: 2px solid #ff0000;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.background-preview {
+    border: 3px dashed #ff0000;
+    border-radius: 10px;
+    flex-grow: 1;
+    margin: 20px;
+    padding: 20px;
+    background-color: #1a1a1a;
+}
+
+.title-area {
+    background-color: #ff0000;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: #000000;
+    font-size: 2rem;
+    min-height: calc(80vh);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    border-bottom: 5px solid #990000;
+}
+
+.courses-list .row:hover {
+    cursor: pointer;
+    border: 2px solid #ff0000 !important;
+    background-color: #990000;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.course-logo {
+    min-width: 200px;
+    width: 100%;
+    height: 200px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.book_card {
+    width: 45vw;
+    min-width: 320px;
+    height: 30vw;
+    min-height: 320px;
+    border: 2px solid #ff0000;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.book_card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    border-color: #990000;
+}
+
+.comment__avatar-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid #ff0000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-btns {
+    height: 60px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: #1a1a1a;
+    border-radius: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.book-logo {
+    width: 20vw;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s;
+}
+.book-logo:hover {
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+/* Additional Modern Styles */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.navbar {
+    background-color: #000000;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #ff0000;
+}
+
+
+.btn-outline-light {
+    color: #000000; /* Черный текст */
+    border-color: #ffffff; /* Белая граница */
+}
+
+.btn-outline-light:hover {
+    color: #000000; /* Белый текст при наведении */
+    background-color: #000000; /* Черный фон при наведении */
+    border-color: #ffffff; /* Белая граница при наведении */
+}
+
+
+.footer {
+    background-color: #000000;
+    color: #ff0000;
+    text-align: center;
+    padding: 20px;
+    border-top: 2px solid #ff0000;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+}
+
+.btn {
+    background-color: #ff0000;
+    color: #000000;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn:hover {
+    background-color: #990000;
+}
