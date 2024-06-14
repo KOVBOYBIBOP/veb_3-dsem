@@ -21,6 +21,16 @@
     background-color: #1a1a1a;
 }
 
+body {
+    background-image: url('/static/images/background.jpg');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+
+
 .title-area {
     background-color: #ff0000;
     background-position: center;
@@ -143,17 +153,26 @@
     width: 100%;
 }
 
-.btn {
-    background-color: #ff0000;
-    color: #000000;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s;
+.btn,
+.page-link {
+    background-color: #ff0000 !important;
+    color: #000000 !important;
+    padding: 10px 20px !important;
+    border: none !important;
+    border-radius: 5px !important;
+    font-size: 1rem !important;
+    cursor: pointer !important;
+    transition: background-color 0.3s !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    display: inline-block !important;
 }
 
-.btn:hover {
-    background-color: #990000;
+.btn:hover,
+.page-link:hover {
+    background-color: #990000 !important;
+}
+
+.page-link {
+    margin: 0 5px !important;
 }

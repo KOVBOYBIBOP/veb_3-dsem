@@ -11,8 +11,12 @@ import os
 
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 application = app
+
+
+# Остальные настройки приложения...
+
 
 app.config.from_pyfile('config.py')
 
