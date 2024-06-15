@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: std-mysql
--- Время создания: Июн 10 2024 г., 14:54
+-- Время создания: Июнь 10 2024 г., 14:54
 -- Версия сервера: 5.7.26-0ubuntu0.16.04.1
 -- Версия PHP: 8.1.15
 
@@ -177,9 +177,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `surname`, `given_name`, `middle_name`, `username`, `password_hash`, `role_id`) VALUES
-(1,'Smith','John','Edward','johnsmith',MD5('hash123'),1),
-(2,'Doe','Jane','Ann','janedoe',MD5('hash456'),2),
-(3,'Brown','Charlie','David','charliebrown',MD5('hash789'),3);
+(1, 'Smith', 'John', 'Edward', 'johnsmith', '35e5d160921d131d9114f1b4ee5f9d55', 1),
+(2, 'Doe', 'Jane', 'Ann', 'janedoe', '094b5bf6da077ec4e2ed3b103ac6a991', 2),
+(3, 'Brown', 'Charlie', 'David', 'charliebrown', '17a0ad47bf9d0aae5e36dd4bbb7d81cf', 3);
 
 -- --------------------------------------------------------
 

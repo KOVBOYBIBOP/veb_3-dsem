@@ -5,15 +5,15 @@ import sqlalchemy as sa
 from flask_login import UserMixin
 from flask import current_app, url_for
 from app import db
-from users_policy import UserPolicy
+from user_policy import UserPolicy
 
-# Define the association table for books and categories
+# Таблица связи книг и категорий
 book_category = db.Table('book_category',
-                         db.Column('book_id', db.Integer, db.ForeignKey('new_books.id', ondelete="CASCADE"), primary_key=True),
-                         db.Column('category_id', db.Integer, db.ForeignKey('categories.id', ondelete="CASCADE"), primary_key=True))
+                         db.Column('book_id', db.Integer, db.ForeignKey('books.id', ondelete="CASCADE"), primary_key=True),
+                         db.Column('category_id', db.Integer, db.ForeignKey('categories.id', ondelete="CASCADE"), primary key=True))
 
 class Book(db.Model):
-    __tablename__ = 'new_books'
+    __tablename__ = 'books'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=False)
@@ -38,7 +38,7 @@ class Book(db.Model):
 
 class Category(db.Model):
     __tablename__ = 'categories'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary key=True, autoincrement=True)
     category_name = db.Column(db.String(100), unique=True, nullable=False)
 
     def __repr__(self):
@@ -46,7 +46,7 @@ class Category(db.Model):
 
 class File(db.Model):
     __tablename__ = 'files'
-    id = db.Column(db.String(100), primary_key=True)
+    id = db.Column(db.String(100), primary key=True)
     file_name = db.Column(db.String(100), nullable=False)
     mime_type = db.Column(db.String(100), nullable=False)
     hash = db.Column(db.String(100), unique=True, nullable=False)
@@ -61,22 +61,22 @@ class File(db.Model):
 
     @property
     def url(self):
-        return url_for('image', image_id=self.id)
+        return url_for('serve_image', image_id=self.id)
 
 class Feedback(db.Model):
     __tablename__ = 'feedback'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary key=True, autoincrement=True)
     score = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text, nullable=False)
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    book_id = db.Column(db.Integer, db.ForeignKey('new_books.id', ondelete="CASCADE"))
+    book_id = db.Column(db.Integer, db.ForeignKey('books.id', ondelete="CASCADE"))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"))
 
     user = db.relationship('User', backref=db.backref('feedback', lazy='dynamic'))
     book = db.relationship('Book', backref=db.backref('feedback', lazy='dynamic'))
 
     def get_user(self):
-        return db.session.query(User).filter_by(id=self.user_id).scalar().login
+        return db.session.query(User).filter_by(id=self.user_id).first().login
 
     def __repr__(self):
         return '<Feedback %r>' % self.comment
@@ -84,7 +84,7 @@ class Feedback(db.Model):
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary key=True, autoincrement=True)
     surname = db.Column(db.String(100), nullable=False)
     given_name = db.Column(db.String(100), nullable=False)
     middle_name = db.Column(db.String(100))
@@ -97,18 +97,17 @@ class User(db.Model, UserMixin):
         self.password_hash = hashlib.md5(password.encode('utf-8')).hexdigest()
 
     def check_password(self, password):
-
         return self.password_hash == hashlib.md5(password.encode('utf-8')).hexdigest()
     
     def is_admin(self):
         return self.role_id == current_app.config["ADMIN_ROLE_ID"]
     
-    def is_moder(self):
-        return self.role_id == current_app.config["MODER_ROLE_ID"]
+    def is_moderator(self):
+        return self.role_id == current_app.config["MODERATOR_ROLE_ID"]
     
     def can(self, action, record=None):
-        user_policy = UserPolicy(record)
-        method = getattr(user_policy, action, None)
+        policy = UserPolicy(record)
+        method = getattr(policy, action, None)
         if method:
             return method()
         return False
@@ -123,14 +122,13 @@ class User(db.Model, UserMixin):
 class UserRole(db.Model):
     __tablename__ = 'user_roles'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary key=True, autoincrement=True)
     role_name = db.Column(db.String(100), nullable=False)
     role_description = db.Column(db.Text, nullable=False)
 
     def __repr__(self):
         return '<UserRole %r>' % self.role_name
 
-# Additional model for version control
 class VersionControl(db.Model):
     __tablename__ = 'version_control'
-    version = db.Column(db.String(32), primary_key=True)
+    version = db.Column(db.String(32), primary key=True)

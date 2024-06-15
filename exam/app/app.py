@@ -9,18 +9,13 @@ import markdown
 from datetime import datetime
 import os
 
-
-
 app = Flask(__name__, static_url_path='/static')
 application = app
 
-
-# Остальные настройки приложения...
-
-
+# Конфигурация приложения
 app.config.from_pyfile('config.py')
 
-convention = {
+naming_convention = {
     "ix": 'ix_%(column_0_label)s',
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
@@ -28,369 +23,253 @@ convention = {
     "pk": "pk_%(table_name)s"
 }
 
-metadata = MetaData(naming_convention=convention)
+metadata = MetaData(naming_convention=naming_convention)
 db = SQLAlchemy(app, metadata=metadata)
 migrate = Migrate(app, db)
 
-PERMITTED_PARAMS = ["title", "description", "publication_year", "publisher", "writer", "pages", "cover_image"]
+PERMITTED_FIELDS = ["title", "description", "publication_year", "publisher", "writer", "pages", "cover_image"]
 
-from auth import auth_bp, init_login_manager, check_rights
-from comments import comments_bp
-from tools import ImageSaver
+from auth import auth_blueprint, init_auth_manager, authorize_user
+from comments import comments_blueprint
+from tools import FileSaver
 from models import File, Book, Category, Feedback
 
-app.register_blueprint(auth_bp)
-app.register_blueprint(comments_bp)
+app.register_blueprint(auth_blueprint)
+app.register_blueprint(comments_blueprint)
 
-init_login_manager(app)
-
-def get_viewed_books():
-    viewed_books = []
-    if request.cookies.get('viewed_books'):
-        books = request.cookies.get('viewed_books').split(',')
-        for book in books:
-            viewed_book = db.session.query(Book).filter(Book.id == int(book)).scalar()
-            if viewed_book:
-                viewed_books.append(viewed_book)
-    return viewed_books
+init_auth_manager(app)
 
 @app.route('/')
-def index():
-    page = request.args.get('page', 1, type=int)
+def home():
+    current_page = request.args.get('page', 1, type=int)
     per_page = app.config['PER_PAGE']
-    viewed_books = get_viewed_books()
-    info_about_books = []
-    books_query = db.session.query(Book)
+    book_info = []
+    query = db.session.query(Book)
 
-    # Получение параметров поиска
-    title = request.args.get('title')
-    genre_ids = request.args.getlist('genre')
-    years = request.args.getlist('year')
-    author = request.args.get('author')
-    volume_from = request.args.get('volume_from')
-    volume_to = request.args.get('volume_to')
+    # Параметры поиска
+    search_title = request.args.get('title')
+    search_genres = request.args.getlist('genre')
+    search_years = request.args.getlist('year')
+    search_author = request.args.get('author')
+    search_volume_from = request.args.get('volume_from')
+    search_volume_to = request.args.get('volume_to')
 
-    if title:
-        books_query = books_query.filter(Book.title.ilike(f'%{title}%'))
-    if genre_ids:
-        books_query = books_query.join(Book.categories).filter(Category.id.in_(genre_ids))
-    if years:
-        books_query = books_query.filter(Book.publication_year.in_(years))
-    if author:
-        books_query = books_query.filter(Book.writer.ilike(f'%{author}%'))
-    if volume_from:
-        books_query = books_query.filter(Book.pages >= int(volume_from))
-    if volume_to:
-        books_query = books_query.filter(Book.pages <= int(volume_to))
+    if search_title:
+        query = query.filter(Book.title.ilike(f'%{search_title}%'))
+    if search_genres:
+        query = query.join(Book.categories).filter(Category.id.in_(search_genres))
+    if search_years:
+        query = query.filter(Book.publication_year.in_(search_years))
+    if search_author:
+        query = query.filter(Book.writer.ilike(f'%{search_author}%'))
+    if search_volume_from:
+        query = query.filter(Book.pages >= int(search_volume_from))
+    if search_volume_to:
+        query = query.filter(Book.pages <= int(search_volume_to))
 
-    books_counter = books_query.count()
-    books = books_query.order_by(desc(Book.publication_year)).limit(per_page).offset(per_page * (page - 1)).all()
+    total_books = query.count()
+    books = query.order_by(desc(Book.publication_year)).limit(per_page).offset(per_page * (current_page - 1)).all()
     
     for book in books:
-        info = {
+        book_details = {
             'book': book,
             'categories': book.categories,
         }
-        info_about_books.append(info)
-        # Вывод данных о книге в консоль
-        print(f"Book ID: {book.id}")
-        print(f"Title: {book.title}")
-        print(f"Description: {book.description}")
-        print(f"Publication Year: {book.publication_year}")
-        print(f"Publisher: {book.publisher}")
-        print(f"Writer: {book.writer}")
-        print(f"Pages: {book.pages}")
-        print(f"Total Ratings: {book.total_ratings}")
-        print(f"Ratings Count: {book.ratings_count}")
-        print(f"Cover Image ID: {book.cover_image}")
-        print("Categories:")
-        for category in book.categories:
-            print(f" - {category.category_name}")
-        print("\n")
+        book_info.append(book)
 
-    page_count = math.ceil(books_counter / per_page)
+    total_pages = math.ceil(total_books / per_page)
     
-    # Получение всех категорий и годов для формы поиска
-    categories = db.session.query(Category).all()
-    years = db.session.query(Book.publication_year).distinct().all()
+    all_categories = db.session.query(Category).all()
+    all_years = db.session.query(Book.publication_year).distinct().all()
 
     return render_template(
         'index.html',
-        books=info_about_books,
-        page=page,
-        page_count=page_count,
-        viewed_books=viewed_books,
-        categories=categories,
-        years=[year[0] for year in years],  # Преобразуем список кортежей в список значений
-        search_params=request.args  # Передаем текущие параметры поиска для сохранения состояния формы
+        books=book_info,
+        page=current_page,
+        total_pages=total_pages,
+        categories=all_categories,
+        years=[year[0] for year in all_years],
+        search_params=request.args
     )
 
-
-
-
-
-
 @app.route('/media/images/<image_id>')
-def image(image_id):
-    img = db.session.query(File).filter_by(id=image_id).first_or_404()
-    return send_from_directory(app.config['UPLOAD_FOLDER'], img.storage_filename)
+def serve_image(image_id):
+    image_file = db.session.query(File).filter_by(id=image_id).first_or_404()
+    return send_from_directory(app.config['UPLOAD_FOLDER'], image_file.storage_filename)
 
-def params(names_list):
-    result = {}
-    for name in names_list:
-        result[name] = request.form.get(name) or None
-    return result
+def extract_params(field_list):
+    parameters = {}
+    for field in field_list:
+        parameters[field] = request.form.get(field) or None
+    return parameters
 
 @app.route('/books/new')
 @login_required
-@check_rights("create")
-def new_book():
-    categories = db.session.query(Category).all()
-    # Вывод жанров в консоль
-    print("Полученные жанры:")
-    for category in categories:
-        print(f"ID: {category.id}, Name: {category.category_name}")
-    return render_template('books/new.html', categories=categories, book={}, new_genres=[], is_edit=False)
+@authorize_user("create")
+def new_book_form():
+    all_categories = db.session.query(Category).all()
+    return render_template('books/new.html', categories=all_categories, book={}, new_genres=[], is_edit=False)
 
 @app.route('/books/new', methods=['POST'])
 @login_required
-@check_rights("create")
-def new_book_route():
-    categories = db.session.query(Category).all()
-    # Вывод жанров в консоль
-    print("Полученные жанры:")
-    for category in categories:
-        print(f"ID: {category.id}, Name: {category.category_name}")
+@authorize_user("create")
+def create_book():
+    all_categories = db.session.query(Category).all()
     
     if request.method == 'POST':
         if not current_user.can("create"):
             flash("Недостаточно прав для доступа к странице", "warning")
-            return redirect(url_for("index"))
+            return redirect(url_for("home"))
         
-        cur_params = request.form.to_dict()
-        for param in cur_params:
-            cur_params[param] = bleach.clean(cur_params[param])
+        cleaned_params = request.form.to_dict()
+        for param in cleaned_params:
+            cleaned_params[param] = bleach.clean(cleaned_params[param])
         
-        new_genres = request.form.getlist('category_ids')
+        selected_genres = request.form.getlist('category_ids')
         
         try:
-            f = request.files.get('cover_img')
-            if f and f.filename:
-                img = ImageSaver(f)
-                db_img = img.save_to_db()
+            uploaded_file = request.files.get('cover_img')
+            if uploaded_file and uploaded_file.filename:
+                img_saver = FileSaver(uploaded_file)
+                saved_file = img_saver.save_to_db()
             else:
-                db_img = None
+                saved_file = None
 
-            book = Book(
-                title=cur_params.get('title'),
-                description=cur_params.get('description'),
-                publication_year=cur_params.get('publication_year'),
-                publisher=cur_params.get('publisher'),
-                writer=cur_params.get('writer'),
-                pages=cur_params.get('pages'),
-                cover_image=db_img.id if db_img else None
+            new_book = Book(
+                title=cleaned_params.get('title'),
+                description=cleaned_params.get('description'),
+                publication_year=cleaned_params.get('publication_year'),
+                publisher=cleaned_params.get('publisher'),
+                writer=cleaned_params.get('writer'),
+                pages=cleaned_params.get('pages'),
+                cover_image=saved_file.id if saved_file else None
             )
 
-            for category_id in new_genres:
+            for category_id in selected_genres:
                 category = db.session.query(Category).filter_by(id=category_id).first()
                 if category:
-                    book.categories.append(category)
+                    new_book.categories.append(category)
             
-            db.session.add(book)
+            db.session.add(new_book)
             db.session.commit()
             
-            if db_img:
-                img.save_to_system()
+            if saved_file:
+                img_saver.save_to_system()
             
-            flash(f"Книга '{book.title}' успешно добавлена", "success")
-            return redirect(url_for('show', book_id=book.id))
+            flash(f"Книга '{new_book.title}' успешно добавлена", "success")
+            return redirect(url_for('show_book', book_id=new_book.id))
         except Exception as e:
             db.session.rollback()
             flash(f"При сохранении возникла ошибка: {str(e)}", "danger")
-            return render_template("books/new.html", categories=categories, book=cur_params, new_genres=new_genres, is_edit=False)
+            return render_template("books/new.html", categories=all_categories, book=cleaned_params, new_genres=selected_genres, is_edit=False)
     
-    return render_template('books/new.html', categories=categories, book={}, new_genres=[], is_edit=False)
-
+    return render_template('books/new.html', categories=all_categories, book={}, new_genres=[], is_edit=False)
 
 @app.route('/books/<int:book_id>/edit', methods=['GET', 'POST'])
 @login_required
-@check_rights("edit")
-def edit_book(book_id):
-    book = db.session.query(Book).filter(Book.id == book_id).scalar()
-    categories = db.session.query(Category).all()
-    edited_genres = [str(category.id) for category in book.categories]
-
-    # Вывод жанров в консоль
-    print("Полученные жанры:")
-    for category in categories:
-        print(f"ID: {category.id}, Name: {category.category_name}")
+@authorize_user("edit")
+def edit_book_form(book_id):
+    selected_book = db.session.query(Book).filter(Book.id == book_id).first()
+    all_categories = db.session.query(Category).all()
+    selected_genres = [str(category.id) for category in selected_book.categories]
 
     if request.method == 'POST':
         if not current_user.can("edit"):
             flash("Недостаточно прав для доступа к странице", "warning")
-            return redirect(url_for("index"))
-        cur_params = params(PERMITTED_PARAMS)
-        for param in cur_params:
-            if cur_params[param] is not None:
-                cur_params[param] = bleach.clean(cur_params[param])
-        new_genres = request.form.getlist('category_ids')
+            return redirect(url_for("home"))
+        updated_params = extract_params(PERMITTED_FIELDS)
+        for param in updated_params:
+            if updated_params[param] is not None:
+                updated_params[param] = bleach.clean(updated_params[param])
+        selected_genres = request.form.getlist('category_ids')
         try:
-            categories_list = []
-            for category in new_genres:
-                if int(category) != 0:
-                    new_category = db.session.query(Category).filter_by(id=category).scalar()
-                    categories_list.append(new_category)
-            book.categories = categories_list
-            book.title = cur_params['title']
-            book.description = cur_params['description']
-            book.publication_year = cur_params['publication_year']
-            book.publisher = cur_params['publisher']
-            book.writer = cur_params['writer']
-            book.pages = cur_params['pages']
-            book.cover_image = cur_params['cover_image']
+            updated_categories = []
+            for category_id in selected_genres:
+                if int(category_id) != 0:
+                    category = db.session.query(Category).filter_by(id=category_id).first()
+                    updated_categories.append(category)
+            selected_book.categories = updated_categories
+            selected_book.title = updated_params['title']
+            selected_book.description = updated_params['description']
+            selected_book.publication_year = updated_params['publication_year']
+            selected_book.publisher = updated_params['publisher']
+            selected_book.writer = updated_params['writer']
+            selected_book.pages = updated_params['pages']
+            selected_book.cover_image = updated_params['cover_image']
             db.session.commit()
-            flash(f"Книга '{book.title}' успешно обновлена", "success")
+            flash(f"Книга '{selected_book.title}' успешно обновлена", "success")
         except Exception as e:
             db.session.rollback()
             flash(f"При сохранении возникла ошибка: {str(e)}", "danger")
-            return render_template("books/edit.html", categories=categories, book=book, new_genres=new_genres, is_edit=True)
-        return redirect(url_for('show', book_id=book.id))
+            return render_template("books/edit.html", categories=all_categories, book=selected_book, new_genres=selected_genres, is_edit=True)
+        return redirect(url_for('show_book', book_id=selected_book.id))
 
-    return render_template("books/edit.html", categories=categories, book=book, new_genres=edited_genres, is_edit=True)
-
+    return render_template("books/edit.html", categories=all_categories, book=selected_book, new_genres=selected_genres, is_edit=True)
 
 @app.route('/delete_post/<int:book_id>', methods=['POST'])
 @login_required
-@check_rights('delete')
-def delete_post(book_id):
+@authorize_user('delete')
+def delete_book(book_id):
     try:
-        book = db.session.query(Book).filter(Book.id == book_id).scalar()
-        if book:
-            # Удаляем связанные категории
-            book.categories = []
+        book_to_delete = db.session.query(Book).filter(Book.id == book_id).first()
+        if book_to_delete:
+            book_to_delete.categories = []
             db.session.commit()
             
-            # Удаляем связанные отзывы
             db.session.query(Feedback).filter(Feedback.book_id == book_id).delete()
             
-            # Проверяем, используется ли изображение в других книгах
-            count_of_images = db.session.query(Book).filter(Book.cover_image == book.cover_image).count()
+            image_usage_count = db.session.query(Book).filter(Book.cover_image == book_to_delete.cover_image).count()
             
-            # Удаляем саму книгу
-            db.session.delete(book)
+            db.session.delete(book_to_delete)
             db.session.commit()
             
-            # Удаляем изображение, если оно не используется в других книгах
-            if count_of_images == 1:
-                image = db.session.query(File).filter(File.id == book.cover_image).scalar()
-                if image:
-                    db.session.delete(image)
+            if image_usage_count == 1:
+                image_to_delete = db.session.query(File).filter(File.id == book_to_delete.cover_image).first()
+                if image_to_delete:
+                    db.session.delete(image_to_delete)
                     db.session.commit()
-                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], image.storage_filename))
+                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], image_to_delete.storage_filename))
 
-            # Обновляем куки с просмотренными книгами
-            res = make_response(redirect(url_for('index')))
-            if request.cookies.get('viewed_books'):
-                viewed_books = []
-                book_ids = request.cookies.get('viewed_books').split(',')
-                for id in book_ids:
-                    if id != str(book_id):
-                        viewed_books.append(id)
-                res.set_cookie('viewed_books', ','.join(viewed_books), max_age=60*60*24*365*2)
+            response = make_response(redirect(url_for('home')))
             flash('Запись успешно удалена', 'success')
-            return res
+            return response
     except Exception as e:
         db.session.rollback()
         flash(f'Ошибка при удалении: {e}', 'danger')
-    return redirect(url_for('index'))
-
-
-@app.route('/books/<int:book_id>/update', methods=['POST'])
-@login_required
-@check_rights("edit")
-def update_book(book_id):
-    if not current_user.can("edit"):
-        flash("Недостаточно прав для доступа к странице", "warning")
-        return redirect(url_for("index"))
-    cur_params = params(PERMITTED_PARAMS)
-    for param in cur_params:
-        cur_params[param] = bleach.clean(cur_params[param])
-    new_categories = request.form.getlist('category_id[]')
-    categories = db.session.query(Category).all()
-    book = db.session.query(Book).filter(Book.id == book_id).scalar()
-    try:
-        categories_list = []
-        for category in new_categories:
-            if int(category) != 0:
-                new_category = db.session.query(Category).filter_by(id=category).scalar()
-                categories_list.append(new_category)
-        book.categories = categories_list
-        book.title = cur_params['title']
-        book.description = cur_params['description']
-        book.publication_year = cur_params['publication_year']
-        book.publisher = cur_params['publisher']
-        book.writer = cur_params['writer']
-        book.pages = cur_params['pages']
-        book.cover_image = cur_params['cover_image']
-        db.session.commit()
-        flash(f"Книга '{book.title}' успешно обновлена", "success")
-    except:
-        db.session.rollback()
-        flash("При сохранении возникла ошибка", "danger")
-        return render_template("books/edit.html", categories=categories, book=book, new_categories=new_categories)
-    return redirect(url_for('show', book_id=book.id))
+    return redirect(url_for('home'))
 
 @app.route('/books/<int:book_id>')
-def show(book_id):
+def show_book(book_id):
     try:
-        book = db.session.query(Book).filter(Book.id == book_id).scalar()
-        book.description = markdown.markdown(book.description)
-        user_comment = None
-        all_comments = None
+        selected_book = db.session.query(Book).filter(Book.id == book_id).first()
+        selected_book.description = markdown.markdown(selected_book.description)
+        user_feedback = None
+        all_feedback = None
         if current_user.is_authenticated:
-            user_comment = db.session.query(Feedback).filter(Feedback.book_id == book_id, Feedback.user_id == current_user.id).scalar()
-            if user_comment:
-                user_comment.comment = markdown.markdown(user_comment.comment)
-            all_comments = db.session.query(Feedback).filter(Feedback.book_id == book_id, Feedback.user_id != current_user.id).all()
+            user_feedback = db.session.query(Feedback).filter(Feedback.book_id == book_id, Feedback.user_id == current_user.id).first()
+            if user_feedback:
+                user_feedback.comment = markdown.markdown(user_feedback.comment)
+            all_feedback = db.session.query(Feedback).filter(Feedback.book_id == book_id, Feedback.user_id != current_user.id).all()
         else:
-            all_comments = db.session.query(Feedback).filter(Feedback.book_id == book_id).all()
+            all_feedback = db.session.query(Feedback).filter(Feedback.book_id == book_id).all()
         
-        markdown_all_comments = []
-        for comment in all_comments:
-            markdown_all_comments.append({
-                'user_id': comment.user_id,
-                'score': comment.score,
-                'comment': markdown.markdown(comment.comment),
-                'date_posted': comment.date_posted
+        feedback_comments = []
+        for feedback in all_feedback:
+            feedback_comments.append({
+                'user_id': feedback.user_id,
+                'score': feedback.score,
+                'comment': markdown.markdown(feedback.comment),
+                'date_posted': feedback.date_posted
             })
         
-        categories = book.categories
-
-        # Добавим отладочные выводы
-        print(f"Book ID: {book.id}")
-        print(f"User Comment: {user_comment}")
-        print(f"All Comments: {markdown_all_comments}")
+        book_categories = selected_book.categories
         
-        res = make_response(render_template('books/show.html', book=book, categories=categories, comment=user_comment, all_comments=markdown_all_comments))
+        response = make_response(render_template('books/show.html', book=selected_book, categories=book_categories, comment=user_feedback, all_comments=feedback_comments))
         
-        viewed_books = request.cookies.get('viewed_books')
-        if not viewed_books:
-            viewed_books = []
-        else:
-            viewed_books = viewed_books.split(',')
-        
-        if str(book_id) not in viewed_books:
-            viewed_books.append(str(book_id))
-        
-        if len(viewed_books) > 5:
-            viewed_books = viewed_books[-5:]
-        
-        res.set_cookie('viewed_books', ','.join(viewed_books), max_age=60*60*24*365*2)
-        
-        return res
+        return response
     except Exception as e:
         flash(f'Ошибка при загрузке данных: {e}', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run()

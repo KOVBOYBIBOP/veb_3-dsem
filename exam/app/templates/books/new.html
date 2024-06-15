@@ -4,6 +4,6 @@
 {% block content %}
 <div class="container mt-4">
     <h1>Добавление книги</h1>
-    {{ book_form(categories, url_for('new_book_route'), current_user, new_genres, book, is_edit=False) }}
+    {{ book_form(categories, url_for('create_book'), current_user, [], {}, is_edit=False) }}
 </div>
 {% endblock %}
